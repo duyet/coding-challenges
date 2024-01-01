@@ -1,6 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
-  ]
+    "config:base",
+    "schedule:daily",
+    "group:allNonMajor",
+    "group:nextjsMonorepo",
+    "schedule:automergeDaily",
+    "security:openssf-scorecard"
+  ],
+  "automerge": true
 }
