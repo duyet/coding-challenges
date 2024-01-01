@@ -1,0 +1,33 @@
+name: Build Test
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['main']
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build Test ${{ matrix.component }}
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        component: [wc]
+
+    defaults:
+      run:
+        working-directory: ./${{ matrix.component }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Build
+        run: cargo build --verbose
+
+      - name: Run tests
+        run: cargo test --verbose
