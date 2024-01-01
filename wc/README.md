@@ -2,10 +2,11 @@
 
 https://codingchallenges.fyi/challenges/challenge-wc
 
-Build:
+Build and Test:
 
 ```bash
 cargo build
+cargo test
 ```
 
 Compared the rust version with the `wc`

@@ -1,6 +1,63 @@
 use clap::Parser;
-use clap_stdin::FileOrStdin;
 use std::io::Read;
+use std::str::FromStr;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+// In case wc is called with multiple stdin arguments, we want to error out.
+static STDIN_HAS_BEEN_USED: AtomicBool = AtomicBool::new(false);
+
+#[derive(Debug, thiserror::Error)]
+pub enum StdinError {
+    #[error("stdin argument used more than once")]
+    StdInRepeatedUse,
+    #[error(transparent)]
+    StdIn(#[from] std::io::Error),
+    #[error("unable to parse from_str: {0}")]
+    FromStr(String),
+}
+
+#[derive(Debug, Clone)]
+enum FileOrStdin {
+    Arg(String),
+    Stdin,
+}
+
+impl FromStr for FileOrStdin {
+    type Err = StdinError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "-" => {
+                if STDIN_HAS_BEEN_USED.load(Ordering::Acquire) {
+                    return Err(StdinError::StdInRepeatedUse);
+                }
+                STDIN_HAS_BEEN_USED.store(true, Ordering::SeqCst);
+                Ok(Self::Stdin)
+            }
+            arg => Ok(Self::Arg(arg.to_owned())),
+        }
+    }
+}
+
+impl FileOrStdin {
+    fn contents(&self) -> Result<String, StdinError> {
+        match self {
+            Self::Arg(name) => std::fs::read_to_string(name).map_err(StdinError::StdIn),
+            Self::Stdin => {
+                let mut buffer = String::new();
+                std::io::stdin().read_to_string(&mut buffer)?;
+                Ok(buffer)
+            }
+        }
+    }
+
+    fn name(&self) -> String {
+        match self {
+            Self::Arg(name) => name.clone(),
+            Self::Stdin => String::from(""),
+        }
+    }
+}
 
 /// word, line, character, and byte count
 #[derive(Parser, Debug)]
@@ -14,7 +71,7 @@ struct Args {
     #[arg(short = 'l')]
     l: bool,
 
-    /// The number of characters in each input file is written to the standard output.  If the current locale does not support multibyte characters, this is equivalent to the -c option.  This will cancel out any prior usage of the -c option.
+    /// The number of characters in each input file is written to the standard output. If the current locale does not support multibyte characters, this is equivalent to the -c option.  This will cancel out any prior usage of the -c option.
     #[arg(short = 'm')]
     m: bool,
 
@@ -30,18 +87,14 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    let content = match args.file.source {
-        clap_stdin::Source::Arg(ref name) => std::fs::read_to_string(name).unwrap(),
-        clap_stdin::Source::Stdin => {
-            let mut buffer = String::new();
-            std::io::stdin().read_to_string(&mut buffer).unwrap();
-            buffer
-        }
-    };
+    let name = args.file.name();
 
-    let name = match args.file.source {
-        clap_stdin::Source::Arg(name) => name,
-        _ => String::from(""),
+    let content = match args.file.contents() {
+        Ok(content) => content,
+        Err(e) => {
+            println!("wc: {:?}: {}", args.file, e);
+            std::process::exit(1);
+        }
     };
 
     let array = [
