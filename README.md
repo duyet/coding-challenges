@@ -8,3 +8,4 @@ https://codingchallenges.fyi
 
 - [Write Your Own wc Tool](./wc)
 - [Write Your Own JSON Parser](./json-parser)
+- [Build Your Own cut Tool](./cut)
