@@ -17,7 +17,7 @@ jobs:
 
     strategy:
       matrix:
-        component: [wc, json-parser]
+        component: [wc, json-parser, cut]
 
     defaults:
       run:
